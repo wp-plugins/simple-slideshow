@@ -4,13 +4,13 @@ Donate link: http://daniellanger.com/blog/simple-slideshow
 Tags: slideshow, jquery, cycle, photos, photographs
 Requires at least: 3.0
 Tested up to: 3.2
-Stable tag: 1.0
+Stable tag: 1.1
 
 Easily add a clean jQuery-powered slideshow to your site. Integrates well into any theme, easy to configure.
 
 == Description ==
 
-I was looking for a simple way to add a [jQuery Cycle Lite](http://jquery.malsup.com/cycle/lite/) slideshow to my posts. Something clean,
+I was looking for a simple way to add a [jQuery Cycle](http://jquery.malsup.com/cycle/) slideshow to my posts. Something clean,
 that takes advantage of WordPress' built-in file-management system, and doesn't require learning all sorts of new templating
 and organization systems. I couldn't find one, so I wrote my own.
 
@@ -51,7 +51,7 @@ Under the *Settings* section of the Administration section, on the page entitled
 = How do I make the images change faster or slower? =
 
 The slideshow will advance when the forwards/backwards arrows are clicked. If you'd like to make the transition between images
-faster or slower, you can pass attributes to the shortcode - for example, `[simple_slideshow time="1000"]`. For full documentation on this, 
+faster or slower, you can pass attributes to the shortcode - for example, `[simple_slideshow transition_speed="1000"]`. For full documentation on this, 
 check out the *Attributes* tab in the Simple Slideshow menu.
 
 = How do I change the order of images in the slideshow? =
@@ -59,6 +59,18 @@ check out the *Attributes* tab in the Simple Slideshow menu.
 In the *media uploader*, go to the *Gallery* tab. There, drag the images up and down to put them in 
 the order you'd like them to be shown in (top to bottom). When you're done, press *Save all changes*,
 and the new order will be shown when you reload the post containing the slideshow.
+
+= What's all this about different Cycle versions? =
+
+Simple Slideshow supports two versions of the Cycle plugin - `Cycle All` and `Cycle Lite`. If you're only looking to have your photos
+fade into one another, `Cycle Lite` is fine for you - plus, it's a smaller file, so it will download faster for
+your users. If you're looking for a fancier image transition, you'll need to load the `Cycle All` plugin.
+
+= How do I use fancier image transitions? = 
+
+If you'd like to use one of the transitions listed (here)[http://jquery.malsup.com/cycle/browser.html], all you have to do
+is set the *Cycle Version* option (in the *Settings* menu) to *All*. Then you can set the transition effect like any other option - 
+set a default one on the *Settings* menu, and then customize it on a per-slideshow basis if you'd like.  
 
 = I want to improve/change/work on/modify Simple Slideshow =
 
@@ -83,7 +95,16 @@ link decorations are all styled by the theme that's in use.
 = 1.0 =
 * First public release.
 
+= 1.1 = 
+* Added internationalization support.
+* Switched jQuery to local (from Google CDN) version.
+* Added support for using the full Cycle plugin
+* Upgraded version of Cycle Lite plugin
+
 == Upgrade Notice ==
 
 = 1.0 =
 Initial upload to Wordpress.org.
+
+= 1.0.1 = 
+This version allows the use of all Cycle translations. Adds support for internationalization. Upgrades the version of Cycle Lite used to properly hide non-displayed elements and their links.
