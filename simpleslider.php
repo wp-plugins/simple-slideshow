@@ -3,8 +3,8 @@
 /*
 Plugin Name: Simple Slideshow
 Plugin URI:	http://daniellanger.com/blog/simple-slideshow
-Description: An easy-to use jQuery+Cycle Lite slideshow - just attach the images to your post using Wordpress' built-in media uploader, and add <code>[simple_slideshow]</code> to the body of your post where you'd like the slideshow to be.
-Version: 1.1
+Description: An easy-to use jQuery+Cycle slideshow - just attach the images to your post using Wordpress' built-in media uploader, and add <code>[simple_slideshow]</code> to the body of your post where you'd like the slideshow to be.
+Version: 1.2
 Author: Daniel Langer
 Author URI: http://www.daniellanger.com
 Text Domain: simple_slideshow
@@ -79,16 +79,15 @@ function sss_handle_shortcode( $attrs ) {
 	if( ! $defaults ) 
 		$defaults = sss_settings_defaults(NULL, true);
 
-	$default_attrs =  array( 'size' => $defaults[ 'size' ],
-						'link_click' => $defaults[ 'link_click' ],
-						'link_target' => $defaults[ 'link_target' ],
-						'show_counter' => $defaults[ 'show_counter' ],
-						'transition_speed' => $defaults[ 'transition_speed' ],
-						'transition' => $defaults[ 'transition' ]);
-	
-	extract( sss_settings_validate( shortcode_atts( $default_attrs, 
-				$attrs ) ) );
-	
+	$stored_cycle_version = $defaults[ 'cycle_version' ];
+
+	// Stops a possible injection of cycle_version as shortcode argument
+	unset( $defaults[ 'cycle_version' ] );
+	extract( sss_settings_validate( shortcode_atts( $defaults, 
+				$attrs), true ) );
+	// Will always be 'lite' (so wrong) - use $stored_cycle_version instead
+	unset( $cycle_version );
+				
 	$images =& get_children( 'post_type=attachment&post_mime_type=' .
 								'image&post_parent=' . get_the_ID() .
 								'&orderby=menu_order&order=ASC' ); 	
@@ -101,21 +100,25 @@ function sss_handle_shortcode( $attrs ) {
 	// Figure out the maximum size of the images being displayed so we can 
 	// set the smallest possible fixed-size container to cycle in.
 	$thumb_w = $thumb_h = 0;
+	$captions = array();
 	foreach ( $images as $image_id => $image_data ) {
 		$info = wp_get_attachment_metadata( $image_id );
 		$thumb_w = max ( $thumb_w, $info[ 'sizes' ][ $size ][ 'width' ] );
 		$thumb_h = max ( $thumb_h, $info[ 'sizes' ][ $size ][ 'height' ] );
+		$captions[ $image_id ] = $image_data->post_excerpt;
 	}
-	
+
 	$slider_show_id = 'simpleslider_show_' . get_the_ID();
 	$slider_show_number = get_the_ID();
 	
 	$resp = '<script type="text/javascript">'.
-				"simpleslider_prefs[{$slider_show_number}] = {".
-					'\'slides\' : ' . count( $images ) . ', '.
-					"'transition_speed' : ${transition_speed}";
-	if( 'all' == $defaults[ 'cycle_version' ])
+				"simpleslider_prefs[{$slider_show_number}] = {" .
+					'\'slides\' : ' . count( $images ) . ', ' .
+					"'transition_speed': ${transition_speed}";
+	if( 'all' == $stored_cycle_version )
 		$resp .= ", 'fx': '${transition}'";
+	if( 1 == $auto_advance )
+		$resp .= ", 'auto_advance_speed': ${auto_advance_speed}";
 	$resp .= '};';
 	$resp .= '</script>' . "\n";
 	
@@ -126,7 +129,11 @@ function sss_handle_shortcode( $attrs ) {
 	foreach ( $images as $image_id => $image_data ) {
 		$opacity = $first ? '1' : '0'; 
 		$first = false;
-		$image_tag = wp_get_attachment_image( $image_id, $size );
+		$image_prop = wp_get_attachment_image_src( $image_id, $size );
+		$image_tag = "<img src=\"${image_prop[ 0 ]}\" " .
+						"width=\"${image_prop[ 1 ]}\" " .
+						"height=\"${image_prop[ 2 ]}\" " .
+						"alt=\"${captions[ $image_id ]}\">"; 
 		
 		$resp .= "<div style=\"opacity: {$opacity}\">";
 						
@@ -152,19 +159,19 @@ function sss_handle_shortcode( $attrs ) {
 	
 	// Controls
 	if ( true == $show_counter ) 
-		$image_counter = "<span id=\"{$slider_show_id}_count\">1</span>" . 
-							'/' . count($images);
+		$image_counter = '<div class="simpleslider_counter"><span ' .
+							"id=\"{$slider_show_id}" .
+							'_count">1</span>/' . count($images) . '</div>';
 	else
 		$image_counter = '';	
 	
-	$resp .= "<div style=\"width: {$thumb_w}px; \" " .
-				"class=\"simpleslider_controls\">";
+	$resp .= '<div class="simpleslider_controls">';
 	$resp .= "<a href=\"#\" id=\"{$slider_show_id}_prev\" " . 
-				"title=\"Previous Image\" class=\"simpleslider_link\">◄ " . 
+				"title=\"Previous Image\" class=\"simpleslider_link prev\">◄ " . 
 				__( 'Prev.', 'simple_slideshow' ) . "</a> " .
 				"&nbsp; ${image_counter} " . 
 				"&nbsp; <a href=\"#\" id=\"{$slider_show_id}_next\" " .
-				"title=\"Next Image\" class=\"simpleslider_link\">" .
+				"title=\"Next Image\" class=\"simpleslider_link next\">" .
 				__( 'Next', 'simple_slideshow' ) . " ►</a>";
 	$resp .= "</div>\n";
 	
