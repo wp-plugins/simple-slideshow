@@ -75,6 +75,7 @@ function sss_load_externals() {
 
 
 function sss_handle_shortcode( $attrs ) {
+	$resp = '';
 	$defaults = get_option( 'sss_settings' );
 	if( ! $defaults ) 
 		$defaults = sss_settings_defaults(NULL, true);
@@ -87,40 +88,40 @@ function sss_handle_shortcode( $attrs ) {
 				$attrs), true ) );
 	// Will always be 'lite' (so wrong) - use $stored_cycle_version instead
 	unset( $cycle_version );
+	
 				
 	$images =& get_children( 'post_type=attachment&post_mime_type=' .
 								'image&post_parent=' . get_the_ID() .
-								'&orderby=menu_order&order=ASC' ); 	
+								'&orderby=menu_order&order=ASC' );
+	
+	print_r(shortcode_atts( $defaults, 
+				$attrs));			
 	
 	// Don't load anything or start processing if there are no 
 	// images to display.
 	if( empty($images) ) 
 		return '';
 		
+	if( ! empty( $attrs[ 'exclude' ] ) ) {
+		$exclude = explode(',', $attrs[ 'exclude' ]);
+		foreach ( $exclude as $image_id ) {
+			unset( $images[ trim( $image_id ) ] );
+		}
+	}
+	
 	// Figure out the maximum size of the images being displayed so we can 
 	// set the smallest possible fixed-size container to cycle in.
 	$thumb_w = $thumb_h = 0;
 	$captions = array();
 	foreach ( $images as $image_id => $image_data ) {
-		$info = wp_get_attachment_metadata( $image_id );
-		$thumb_w = max ( $thumb_w, $info[ 'sizes' ][ $size ][ 'width' ] );
-		$thumb_h = max ( $thumb_h, $info[ 'sizes' ][ $size ][ 'height' ] );
+		$image_props[ $image_id ] = wp_get_attachment_image_src( $image_id, $size );
+		$thumb_w = max ( $thumb_w, $image_props[ $image_id ][ 1 ] );
+		$thumb_h = max ( $thumb_h, $image_props[ $image_id ][ 2 ] );
 		$captions[ $image_id ] = $image_data->post_excerpt;
 	}
 
 	$slider_show_id = 'simpleslider_show_' . get_the_ID();
 	$slider_show_number = get_the_ID();
-	
-	$resp = '<script type="text/javascript">'.
-				"simpleslider_prefs[{$slider_show_number}] = {" .
-					'\'slides\' : ' . count( $images ) . ', ' .
-					"'transition_speed': ${transition_speed}";
-	if( 'all' == $stored_cycle_version )
-		$resp .= ", 'fx': '${transition}'";
-	if( 1 == $auto_advance )
-		$resp .= ", 'auto_advance_speed': ${auto_advance_speed}";
-	$resp .= '};';
-	$resp .= '</script>' . "\n";
 	
 	$resp .= "<div class=\"simpleslider_show\" id=\"{$slider_show_id}\" " . 
 				"style=\"height: {$thumb_h}px; width: {$thumb_w}px;\">\n";
@@ -129,26 +130,22 @@ function sss_handle_shortcode( $attrs ) {
 	foreach ( $images as $image_id => $image_data ) {
 		$opacity = $first ? '1' : '0'; 
 		$first = false;
-		$image_prop = wp_get_attachment_image_src( $image_id, $size );
+
+		$image_prop = $image_props[ $image_id ];
 		$image_tag = "<img src=\"${image_prop[ 0 ]}\" " .
 						"width=\"${image_prop[ 1 ]}\" " .
 						"height=\"${image_prop[ 2 ]}\" " .
 						"alt=\"${captions[ $image_id ]}\">"; 
 		
 		$resp .= "<div style=\"opacity: {$opacity}\">";
-						
 		if ( 1 == $link_click ){	
-			if ( 'direct' == $link_target ) {
-				$resp .= '<a href="' . wp_get_attachment_url( $image_id ) . 
-							"\" class=\"simpleslider_image_link " . 
-							"simpleslider_link\" " . 
-							"target=\"_new\">{$image_tag}</a>";
-			} else {
-				$resp .= '<a href="' . get_attachment_link( $image_id ) . 
-							"\" class=\"simpleslider_image_link " .
-							"simpleslider_link\" " . 
-							"target=\"_new\">{$image_tag}</a>";
-			}
+			$link = ( 'direct' == $link_target ) ? 
+							wp_get_attachment_url( $image_id ) : 
+							get_attachment_link( $image_id );
+							
+			$resp .= '<a href="' . $link . '" class="simpleslider_image_link " .
+						"simpleslider_link" target="_new">' . $image_tag . 
+						'</a>';
 		} else { 
 			$resp .= $image_tag;
 		}				
@@ -156,8 +153,7 @@ function sss_handle_shortcode( $attrs ) {
 	}	
 	
 	$resp .= "</div>\n";
-	
-	// Controls
+		
 	if ( true == $show_counter ) 
 		$image_counter = '<div class="simpleslider_counter"><span ' .
 							"id=\"{$slider_show_id}" .
@@ -166,14 +162,31 @@ function sss_handle_shortcode( $attrs ) {
 		$image_counter = '';	
 	
 	$resp .= '<div class="simpleslider_controls">';
-	$resp .= "<a href=\"#\" id=\"{$slider_show_id}_prev\" " . 
-				"title=\"Previous Image\" class=\"simpleslider_link prev\">◄ " . 
-				__( 'Prev.', 'simple_slideshow' ) . "</a> " .
-				"&nbsp; ${image_counter} " . 
-				"&nbsp; <a href=\"#\" id=\"{$slider_show_id}_next\" " .
-				"title=\"Next Image\" class=\"simpleslider_link next\">" .
-				__( 'Next', 'simple_slideshow' ) . " ►</a>";
+	
+	if ( true == $show_controls )
+		$resp .= "<a href=\"#\" id=\"{$slider_show_id}_prev\" " . 
+					"title=\"Previous Image\" class=\"simpleslider_link prev\">◄ " . 
+					__( 'Prev.', 'simple_slideshow' ) . "</a> " .
+					"&nbsp;"; 
+				
+	$resp .= ${image_counter};
+				
+	if ( true == $show_controls)
+		$resp .= "&nbsp; <a href=\"#\" id=\"{$slider_show_id}_next\" " .
+					"title=\"Next Image\" class=\"simpleslider_link next\">" .
+					__( 'Next', 'simple_slideshow' ) . " ►</a>";
+					
 	$resp .= "</div>\n";
+	
+	
+	// JavaScript
+	$prefs = array('slides'=>count($images), 'transition_speed'=>$transition_speed);
+	if( 'all' == $stored_cycle_version ) 
+		$prefs['fx'] = $transition;
+	if( 1 == $auto_advance ) 
+		$prefs['auto_advance_speed'] = $auto_advance_speed;
+	
+	$resp .= "\n".'<script type="text/javascript">simpleslider_prefs['.$slider_show_number.'] = '.json_encode($prefs).'</script>';
 	
 	return $resp;
 }
